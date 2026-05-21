@@ -11,3 +11,4 @@ _db/*.db-wal
 # Node.js
 node_modules/
 .wrangler/
+_db/wordpress.db
