@@ -1,0 +1,349 @@
+name: WordPress PHP keep-alive (최대 20초 대기)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 5분마다 트리거 → job 15개가 20초 간격 오프셋으로 분산 실행
+    # cold start: setup-php 캐시 활용으로 ~20초 → 최대 대기 20초 달성
+    - cron: '0,5,10,15,20,25,30,35,40,45,50,55 * * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+  slot-s000:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 0s 후 PHP 서버 기동
+        run: |
+          bash .github/scripts/php-keepalive.sh 0
+
+  slot-s020:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 20s 후 PHP 서버 기동
+        run: |
+          sleep 20
+          bash .github/scripts/php-keepalive.sh 20
+
+  slot-s040:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 40s 후 PHP 서버 기동
+        run: |
+          sleep 40
+          bash .github/scripts/php-keepalive.sh 40
+
+  slot-s060:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 60s 후 PHP 서버 기동
+        run: |
+          sleep 60
+          bash .github/scripts/php-keepalive.sh 60
+
+  slot-s080:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 80s 후 PHP 서버 기동
+        run: |
+          sleep 80
+          bash .github/scripts/php-keepalive.sh 80
+
+  slot-s100:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 100s 후 PHP 서버 기동
+        run: |
+          sleep 100
+          bash .github/scripts/php-keepalive.sh 100
+
+  slot-s120:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 120s 후 PHP 서버 기동
+        run: |
+          sleep 120
+          bash .github/scripts/php-keepalive.sh 120
+
+  slot-s140:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 140s 후 PHP 서버 기동
+        run: |
+          sleep 140
+          bash .github/scripts/php-keepalive.sh 140
+
+  slot-s160:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 160s 후 PHP 서버 기동
+        run: |
+          sleep 160
+          bash .github/scripts/php-keepalive.sh 160
+
+  slot-s180:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 180s 후 PHP 서버 기동
+        run: |
+          sleep 180
+          bash .github/scripts/php-keepalive.sh 180
+
+  slot-s200:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 200s 후 PHP 서버 기동
+        run: |
+          sleep 200
+          bash .github/scripts/php-keepalive.sh 200
+
+  slot-s220:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 220s 후 PHP 서버 기동
+        run: |
+          sleep 220
+          bash .github/scripts/php-keepalive.sh 220
+
+  slot-s240:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 240s 후 PHP 서버 기동
+        run: |
+          sleep 240
+          bash .github/scripts/php-keepalive.sh 240
+
+  slot-s260:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 260s 후 PHP 서버 기동
+        run: |
+          sleep 260
+          bash .github/scripts/php-keepalive.sh 260
+
+  slot-s280:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, mbstring, xml, curl, zip, gd, intl, opcache
+          coverage: none
+          tools: none
+      - name: nginx 설치
+        run: |
+          sudo apt-get install -y --no-install-recommends nginx 2>/dev/null
+      - name: offset 280s 후 PHP 서버 기동
+        run: |
+          sleep 280
+          bash .github/scripts/php-keepalive.sh 280

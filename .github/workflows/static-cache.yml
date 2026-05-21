@@ -1,0 +1,176 @@
+name: WordPress PHP 실시간 서버 (nginx + PHP-FPM)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0,6,12,18 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'wordpress/**'
+      - '_db/**'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  php-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: PHP + nginx 설치
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            php8.3-fpm php8.3-cli php8.3-sqlite3 php8.3-mbstring \
+            php8.3-xml php8.3-curl php8.3-zip php8.3-gd php8.3-intl \
+            php8.3-opcache nginx sqlite3 curl unzip rsync
+
+      - name: PHP-FPM 소켓 및 풀 설정
+        run: |
+          sudo mkdir -p /run/php
+          {
+            echo '[wordpress]'
+            echo 'user = www-data'
+            echo 'group = www-data'
+            echo 'listen = /run/php/php8.3-fpm-wp.sock'
+            echo 'listen.owner = www-data'
+            echo 'listen.group = www-data'
+            echo 'listen.mode = 0660'
+            echo 'pm = dynamic'
+            echo 'pm.max_children = 20'
+            echo 'pm.start_servers = 4'
+            echo 'pm.min_spare_servers = 2'
+            echo 'pm.max_spare_servers = 8'
+            echo 'pm.max_requests = 500'
+            echo 'php_value[upload_max_filesize] = 64M'
+            echo 'php_value[post_max_size] = 64M'
+            echo 'php_value[memory_limit] = 256M'
+            echo 'php_value[max_execution_time] = 300'
+          } | sudo tee /etc/php/8.3/fpm/pool.d/wordpress.conf > /dev/null
+          sudo systemctl restart php8.3-fpm || sudo service php8.3-fpm restart || true
+          sleep 2
+
+      - name: nginx 설정 (WordPress + PHP-FPM 완전 통합)
+        run: |
+          WP_ROOT="$(pwd)/wordpress"
+          {
+            echo 'server {'
+            echo '  listen 8080;'
+            echo '  server_name localhost;'
+            echo "  root $WP_ROOT;"
+            echo '  index index.php index.html;'
+            echo '  client_max_body_size 64M;'
+            echo '  location / { try_files $uri $uri/ /index.php?$args; }'
+            echo '  location ~ .php$ {'
+            echo '    include snippets/fastcgi-php.conf;'
+            echo '    fastcgi_pass unix:/run/php/php8.3-fpm-wp.sock;'
+            echo '    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;'
+            echo '    fastcgi_param HTTP_HOST localhost:8080;'
+            echo '    fastcgi_read_timeout 300;'
+            echo '    include fastcgi_params;'
+            echo '  }'
+            echo '  location ~* .(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$ {'
+            echo '    expires 30d;'
+            echo "    add_header Cache-Control 'public, immutable';"
+            echo '  }'
+            echo '  location ~ /. { deny all; }'
+            echo '  location = /wp-cron.php { allow all; }'
+            echo '}'
+          } | sudo tee /etc/nginx/sites-available/wordpress > /dev/null
+          sudo ln -sf /etc/nginx/sites-available/wordpress /etc/nginx/sites-enabled/
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo nginx -t && (sudo systemctl restart nginx || sudo service nginx restart) || true
+          sleep 2
+
+      - name: WordPress 실시간 실행 검증
+        run: |
+          if [ ! -f "wordpress/wp-load.php" ]; then
+            echo "WordPress 미설치 - 건너뜀"
+            exit 0
+          fi
+          HTTP=$(curl -o /dev/null -s -w "%{http_code}" --max-time 30 "http://localhost:8080/" || echo "000")
+          echo "HTTP 응답: $HTTP"
+          if [ "$HTTP" = "200" ] || [ "$HTTP" = "301" ] || [ "$HTTP" = "302" ]; then
+            echo "WordPress nginx+PHP-FPM 정상 실행"
+          else
+            echo "PHP 서버 상태 코드: $HTTP"
+            sudo tail -10 /var/log/nginx/error.log 2>/dev/null || true
+          fi
+
+      - name: PHP 동적 기능 실행 테스트
+        run: |
+          if [ ! -f "wordpress/wp-load.php" ]; then exit 0; fi
+          echo "=== PHP 동적 실행 테스트 ==="
+          cd wordpress && php -r "
+          error_reporting(0);
+          define('ABSPATH', __DIR__ . '/');
+          define('WPINC', 'wp-includes');
+          require_once 'wp-load.php';
+          echo 'WordPress PHP OK: v' . $wp_version . PHP_EOL;
+          echo '활성 플러그인: ' . count(get_option('active_plugins', [])) . '개' . PHP_EOL;
+          $posts = get_posts(['numberposts' => 3]);
+          echo '게시물 수: ' . count($posts) . '개' . PHP_EOL;
+          " 2>/dev/null || echo "WordPress 로드 확인"
+          cd ..
+          curl -sf --max-time 15 "http://localhost:8080/wp-json/wp/v2/posts"             -H "Accept: application/json" -o /tmp/wp-api.json 2>/dev/null &&             echo "REST API 정상" || echo "REST API 응답 대기"
+
+      - name: 정적 캐시 생성 (SEO 폴백)
+        run: |
+          if [ ! -f "wordpress/wp-load.php" ]; then exit 0; fi
+          mkdir -p _cache
+          curl -sf -L --max-time 30 "http://localhost:8080/" -o _cache/index.html 2>/dev/null || echo "메인 캐시 실패"
+          curl -sf -L --max-time 15 "http://localhost:8080/sitemap.xml" -o /tmp/sitemap.xml 2>/dev/null || true
+          if [ -f /tmp/sitemap.xml ]; then
+            grep -o '<loc>[^<]*</loc>' /tmp/sitemap.xml | sed 's|<loc>||;s|</loc>||' | head -50 | while read -r loc; do
+              REL=$(echo "$loc" | sed "s|http://localhost:8080||;s|https://[^/]*||")
+              [ -z "$REL" ] || [ "$REL" = "/" ] && continue
+              DIR=$(dirname "$REL")
+              mkdir -p "_cache$DIR"
+              if echo "$REL" | grep -q "/$"; then
+                mkdir -p "_cache$REL"
+                curl -sf -L --max-time 20 "http://localhost:8080$REL" -o "_cache${REL}index.html" 2>/dev/null || true
+              else
+                curl -sf -L --max-time 20 "http://localhost:8080$REL" -o "_cache$REL" 2>/dev/null || true
+              fi
+            done
+          fi
+          COUNT=$(find _cache -name "*.html" 2>/dev/null | wc -l)
+          echo "캐시 완료: ${COUNT}개 페이지"
+
+      - name: 캐시 및 서버 상태 커밋
+        run: |
+          git config user.name "CloudPress Bot"
+          git config user.email "bot@cloudpress.app"
+          mkdir -p _cache
+          printf '{"updated":"%s","server":"nginx+php8.3-fpm","wp":"%s"}'             "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             "$([ -f wordpress/wp-load.php ] && echo installed || echo not_installed)"             > _cache/server-status.json
+          git add _cache/
+          if ! git diff --staged --quiet; then
+            git commit -m "PHP 서버 캐시 갱신 $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            for i in 1 2 3; do
+              git pull --rebase origin main 2>/dev/null || true
+              git push origin main && break
+              sleep $((i * 5))
+            done || true
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _cache
+        continue-on-error: true
+
+  deploy-pages:
+    needs: php-server
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
+        continue-on-error: true

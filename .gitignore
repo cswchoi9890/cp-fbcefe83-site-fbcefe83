@@ -1,0 +1,13 @@
+# WordPress SQLite DB (GitHub Actions 워크플로우가 자동 생성)
+_db/wordpress.db
+_db/*.db
+_db/*.db-shm
+_db/*.db-wal
+
+# 임시 파일
+*.log
+/tmp/
+
+# Node.js
+node_modules/
+.wrangler/

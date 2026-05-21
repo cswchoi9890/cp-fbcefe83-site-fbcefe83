@@ -1,0 +1,51 @@
+name: WordPress 업데이트 및 동기화
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'wordpress/wp-content/**'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: PHP 설치
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y php-cli php-sqlite3 php-mbstring php-xml php-curl php-zip sqlite3
+
+      - name: WP-CLI 설치
+        run: |
+          curl -sL "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar" -o /usr/local/bin/wp
+          chmod +x /usr/local/bin/wp
+
+      - name: WordPress 코어 업데이트
+        run: |
+          if [ -f "wordpress/wp-load.php" ]; then
+            wp core update --allow-root --path=./wordpress 2>&1 || true
+            wp plugin update --all --allow-root --path=./wordpress 2>&1 || true
+            echo "업데이트 완료"
+          fi
+
+      - name: 변경사항 커밋
+        run: |
+          git config user.name "CloudPress Bot"
+          git config user.email "bot@cloudpress.app"
+          git add wordpress/ 2>/dev/null || true
+          if ! git diff --staged --quiet; then
+            git commit -m "WordPress 업데이트"
+            for i in 1 2 3; do
+              git pull --rebase origin main 2>/dev/null || true
+              git push origin main && break
+              sleep $((i * 3))
+            done || true
+          fi
